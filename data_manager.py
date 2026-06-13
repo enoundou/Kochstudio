@@ -1,9 +1,6 @@
 # data_manager.py
 
-from models import db
-from models.customer import Customer
-from models.reservation import Reservation
-from models.email_log import EmailLog
+from models import db, Customer, Reservation, EmailLog
 
 
 class DataManager:
