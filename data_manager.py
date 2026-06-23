@@ -32,12 +32,12 @@ class DataManager:
 
     @staticmethod
     def create_reservation(
-        reservation_number,
-        customer_id,
-        event_type_code,
-        cooking_course_id=None,
-        participant_count=None,
-        note=None
+            reservation_number,
+            customer_id,
+            event_type_code,
+            cooking_course_id=None,
+            participant_count=None,
+            note=None
     ):
         reservation = Reservation(
             reservation_number=reservation_number,
@@ -65,8 +65,8 @@ class DataManager:
 
     @staticmethod
     def update_reservation_status(
-        reservation_id,
-        status_code
+            reservation_id,
+            status_code
     ):
         reservation = Reservation.query.get(reservation_id)
 
@@ -80,12 +80,12 @@ class DataManager:
 
     @staticmethod
     def log_email(
-        reservation_id,
-        email_type_code,
-        to_email,
-        status_code,
-        subject=None,
-        body=None
+            reservation_id,
+            email_type_code,
+            to_email,
+            status_code,
+            subject=None,
+            body=None
     ):
         email_log = EmailLog(
             reservation_id=reservation_id,

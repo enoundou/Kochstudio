@@ -1,9 +1,7 @@
-
 from flask import Flask
 
 from models import db
-
-from routers.reservation_routes import reservation_bp
+from routes.reservation_routes import reservation_bp
 
 
 def create_app():
@@ -19,7 +17,9 @@ def create_app():
             Configured Flask application instance.
     """
 
-    app = Flask(__name__)
+    app = Flask(__name__,
+        template_folder="templates",
+        static_folder="static")
 
     #
     # Database configuration

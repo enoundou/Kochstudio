@@ -4,7 +4,6 @@ from flask import Blueprint, jsonify, request
 
 from models import db, OfferCatalogue
 
-
 offer_bp = Blueprint(
     "offers",
     __name__,

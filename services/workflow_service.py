@@ -89,8 +89,8 @@ class WorkflowService:
         current_status = reservation.status_code
 
         if not WorkflowService.can_transition(
-            current_status,
-            new_status
+                current_status,
+                new_status
         ):
             raise ValueError(
                 f"Invalid workflow transition: "

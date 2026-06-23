@@ -314,9 +314,7 @@ def run_seed():
 
 
 if __name__ == "__main__":
-
     app = create_app()
 
     with app.app_context():
         run_seed()
-

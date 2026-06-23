@@ -11,7 +11,6 @@ from models import (
 from services.automation_service import AutomationService
 from services.workflow_service import WorkflowService
 
-
 admin_bp = Blueprint(
     "admin",
     __name__,

@@ -12,7 +12,6 @@ from models import (
     InvitationStatus
 )
 
-
 enum_bp = Blueprint(
     "enums",
     __name__,

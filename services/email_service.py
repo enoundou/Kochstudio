@@ -1,6 +1,7 @@
 from datetime import datetime, UTC
 
 from flask import current_app
+
 from models import (
     db,
     EmailLog,
@@ -20,11 +21,11 @@ class EmailService:
 
     @staticmethod
     def send_email(
-        reservation,
-        email_type_code,
-        recipient_email,
-        subject,
-        body
+            reservation,
+            email_type_code,
+            recipient_email,
+            subject,
+            body
     ):
         """
         Send an email and create an email log entry.
@@ -236,7 +237,6 @@ class EmailService:
         managers = Manager.query.all()
 
         for manager in managers:
-
             EmailService.send_email(
                 reservation=reservation,
                 email_type_code="manager_invoice_request",
@@ -261,7 +261,6 @@ class EmailService:
         collaborators = Collaborator.query.all()
 
         for collaborator in collaborators:
-
             EmailService.send_email(
                 reservation=reservation,
                 email_type_code="collaborator_invitation",

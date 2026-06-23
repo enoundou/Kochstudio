@@ -1,5 +1,6 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, UTC
+
+from flask_sqlalchemy import SQLAlchemy
 
 datetime.now(UTC)
 
@@ -98,7 +99,8 @@ class Reservation(db.Model):
     current_step_code = db.Column(db.Text, db.ForeignKey("workflow_steps.code"))
 
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+    updated_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC),
+                           onupdate=lambda: datetime.now(UTC))
     confirmed_at = db.Column(db.DateTime)
     cancelled_at = db.Column(db.DateTime)
 

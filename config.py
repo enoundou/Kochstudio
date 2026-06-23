@@ -1,4 +1,3 @@
-
 """
 Application configuration.
 
@@ -76,10 +75,10 @@ class Config:
     )
 
     MAIL_USE_TLS = (
-        os.getenv(
-            "MAIL_USE_TLS",
-            "true"
-        ).lower() == "true"
+            os.getenv(
+                "MAIL_USE_TLS",
+                "true"
+            ).lower() == "true"
     )
 
     MAIL_DEFAULT_SENDER = os.getenv(

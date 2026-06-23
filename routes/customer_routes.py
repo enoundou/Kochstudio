@@ -3,8 +3,6 @@ from flask import jsonify
 from flask import request
 
 from models import Customer
-from services.reservation_service import ReservationService
-
 
 customer_bp = Blueprint(
     "customers",
