@@ -185,8 +185,11 @@ class AutomationService:
         """
         Send offer catalogue email to the customer.
 
-        The shared reservation service prevents duplicate offer emails and
-        schedules the offer reminder only when needed.
+        This job is executed after the customer has accepted
+        the reservation conditions.
+
+        Args:
+            job (AutomationJob): Automation job instance.
         """
 
         reservation = Reservation.query.get(job.reservation_id)
@@ -194,7 +197,25 @@ class AutomationService:
         if not reservation:
             raise ValueError("Reservation not found.")
 
-        ReservationService.send_offer_catalogue_now(reservation)
+        EmailService.send_offer_catalogue(reservation)
+
+        reservation.status_code = "waiting_offer_selection"
+        reservation.current_step_code = "waiting_offer_selection"
+        reservation.updated_at = datetime.now(UTC)
+
+        reminder_job = AutomationJob(
+            reservation_id=reservation.id,
+            job_type_code="remind_offer_after_2_days",
+            scheduled_at=datetime.now(UTC) + timedelta(days=current_app.config.get(
+                "OFFER_REMINDER_DAYS",
+                2
+            )),
+            status_code="scheduled"
+        )
+
+        db.session.add(reminder_job)
+        db.session.commit()
+
     @staticmethod
     def send_offer_reminder(job):
         """

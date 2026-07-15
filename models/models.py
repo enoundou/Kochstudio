@@ -75,8 +75,10 @@ class Reservation(db.Model):
     participant_count = db.Column(db.Integer)
     first_choice_date = db.Column(db.Date)
     first_choice_time = db.Column(db.Time)
+    first_choice_course_id = db.Column(db.Integer, db.ForeignKey("cooking_courses.id"))
     second_choice_date = db.Column(db.Date)
     second_choice_time = db.Column(db.Time)
+    second_choice_course_id = db.Column(db.Integer, db.ForeignKey("cooking_courses.id"))
     note = db.Column(db.Text)
 
     billing_company_name = db.Column(db.Text)
@@ -106,7 +108,9 @@ class Reservation(db.Model):
 
     customer = db.relationship("Customer", backref="reservations")
     event_type = db.relationship("EventType")
-    cooking_course = db.relationship("CookingCourse")
+    cooking_course = db.relationship("CookingCourse", foreign_keys=[cooking_course_id])
+    first_choice_course = db.relationship("CookingCourse", foreign_keys=[first_choice_course_id])
+    second_choice_course = db.relationship("CookingCourse", foreign_keys=[second_choice_course_id])
     status = db.relationship("ReservationStatus")
     current_step = db.relationship("WorkflowStep")
 
@@ -178,6 +182,7 @@ class EmailLog(db.Model):
     reservation_id = db.Column(db.Integer, db.ForeignKey("reservations.id"), nullable=False)
     email_type_code = db.Column(db.Text, db.ForeignKey("email_types.code"), nullable=False)
     to_email = db.Column(db.Text, nullable=False)
+    password_hash = db.Column(db.Text)
     sent_at = db.Column(db.DateTime)
     status_code = db.Column(db.Text, db.ForeignKey("email_statuses.code"), nullable=False)
     subject = db.Column(db.Text)
@@ -233,6 +238,7 @@ class Manager(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text, nullable=False)
     email = db.Column(db.Text, nullable=False)
+    password_hash = db.Column(db.Text)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
 
@@ -251,6 +257,7 @@ class CalendarInvitation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reservation_id = db.Column(db.Integer, db.ForeignKey("reservations.id"), nullable=False)
     invitee_email = db.Column(db.Text, nullable=False)
+    password_hash = db.Column(db.Text)
     invitee_name = db.Column(db.Text)
     calendar_event_id = db.Column(db.Text)
     sent_at = db.Column(db.DateTime)
@@ -267,6 +274,7 @@ class Collaborator(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text, nullable=False)
     email = db.Column(db.Text, nullable=False)
+    password_hash = db.Column(db.Text)
     role = db.Column(db.Text)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
@@ -283,3 +291,21 @@ class InvitationCollaborator(db.Model):
     invitation = db.relationship("CalendarInvitation", backref="collaborators")
     collaborator = db.relationship("Collaborator")
     status = db.relationship("InvitationStatus")
+
+
+class CoursePriceCategory(db.Model):
+    __tablename__ = "course_price_categories"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cooking_course_id = db.Column(db.Integer, db.ForeignKey("cooking_courses.id"), nullable=False)
+    category_code = db.Column(db.Text, nullable=False)
+    name_de = db.Column(db.Text, nullable=False)
+    description_de = db.Column(db.Text)
+    min_participants = db.Column(db.Integer, nullable=False, default=1)
+    max_participants = db.Column(db.Integer)
+    price_per_person = db.Column(db.Numeric(10, 2), nullable=False)
+    discount_percent = db.Column(db.Numeric(5, 2), default=0)
+    active = db.Column(db.Integer, default=1)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+    cooking_course = db.relationship("CookingCourse", backref="price_categories")

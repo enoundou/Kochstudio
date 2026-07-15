@@ -87,12 +87,12 @@ class Config:
     )
 
     #
-    # Automation Jobs
+    # Automation Jobs in minutes
     #
     JOB_RUNNER_INTERVAL = int(
         os.getenv(
             "JOB_RUNNER_INTERVAL",
-            60
+            1
         )
     )
 
@@ -136,6 +136,26 @@ class Config:
         "INFO"
     )
 
+
+    #
+    # OpenAI Email Text Generation
+    #
+    OPENAI_API_KEY = os.getenv(
+        "OPENAI_API_KEY",
+        ""
+    )
+
+    OPENAI_MODEL = os.getenv(
+        "OPENAI_MODEL",
+        "gpt-5.5"
+    )
+
+    USE_OPENAI_EMAILS = (
+            os.getenv(
+                "USE_OPENAI_EMAILS",
+                "true"
+            ).lower() == "true"
+    )
 
 class DevelopmentConfig(Config):
     """

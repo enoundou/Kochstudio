@@ -566,9 +566,6 @@ Ihr Kochstudio Team
                 "ReservationCondition is required before sending offers."
             )
 
-        offers = OfferCatalogue.query.filter_by(active=1).order_by(
-            OfferCatalogue.price.asc()
-        ).all()
 
         if not offers:
             raise ValueError(
@@ -580,6 +577,7 @@ Ihr Kochstudio Team
             token=condition.confirmation_token,
             _external=True
         )
+
 
         offer_lines = [
             f"- {offer.name_de}: {offer.price} EUR"
@@ -594,7 +592,6 @@ Ihr Kochstudio Team
             + "\n".join(offer_lines)
             + f"\n\nFormular: {offer_url}"
         )
-
         return EmailService.send_email(
             reservation=reservation,
             email_type_code="offer_catalogue",
@@ -602,6 +599,7 @@ Ihr Kochstudio Team
             subject=subject,
             body=body
         )
+
     @staticmethod
     def send_offer_reminder(reservation):
         """
@@ -617,9 +615,6 @@ Ihr Kochstudio Team
                 "ReservationCondition is required before sending offers."
             )
 
-        offers = OfferCatalogue.query.filter_by(active=1).order_by(
-            OfferCatalogue.price.asc()
-        ).all()
 
         if not offers:
             raise ValueError(
@@ -646,6 +641,7 @@ Ihr Kochstudio Team
             subject=subject,
             body=body
         )
+
     @staticmethod
     def send_reservation_confirmation(reservation):
         """

@@ -18,7 +18,7 @@ Run:
 """
 
 from app import create_app
-from models import (
+from models.models import (
     db,
     EventType,
     ReservationStatus,

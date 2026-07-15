@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Anfrage erfasst | Kochstudio{% endblock %}
+
+{% block content %}
+<main class="login-wrap">
+  <section class="login-card">
+    <h1>Anfrage erfolgreich erfasst</h1>
+    <p class="sub">Vielen Dank für Ihre Anfrage.</p>
+    <p class="sub">Ihre Buchungsnummer ist <strong>{{ reservation.reservation_number }}</strong>.</p>
+    <p class="sub">Wir werden Ihre Anfrage prüfen und Sie in Kürze per E-Mail über die weiteren Schritte informieren..</p>
+    <a class="btn btn-primary btn-block" href="{{ url_for('booking.booking_form') }}">Zurück zum Formular</a>
+  </section>
+</main>
+{% endblock %}

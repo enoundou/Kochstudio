@@ -156,11 +156,10 @@ class ReservationService:
     @staticmethod
     def accept_conditions(token):
         """
-        Accept reservation conditions and send the offer catalogue email.
+        Accept reservation conditions.
 
-        The offer email is sent immediately after the customer accepts the
-        conditions. A scheduled job is kept as a safety net until the email is
-        successfully sent.
+        Updates reservation status and schedules
+        the offer catalogue email.
         """
 
         condition = ReservationCondition.query.filter_by(
@@ -173,39 +172,24 @@ class ReservationService:
         reservation = condition.reservation
 
         condition.is_accepted = 1
-        condition.responded_at = condition.responded_at or datetime.now(UTC)
+        condition.responded_at = datetime.now(UTC)
 
         reservation.status_code = "conditions_confirmed"
         reservation.current_step_code = "conditions_confirmed"
         reservation.updated_at = datetime.now(UTC)
 
-        offer_job = AutomationJob.query.filter_by(
+        offer_job = AutomationJob(
             reservation_id=reservation.id,
             job_type_code="send_offer_catalogue",
+            scheduled_at=datetime.now(UTC),
             status_code="scheduled"
-        ).first()
+        )
 
-        if not offer_job and not ReservationService.offer_catalogue_email_sent(
-                reservation.id
-        ):
-            offer_job = AutomationJob(
-                reservation_id=reservation.id,
-                job_type_code="send_offer_catalogue",
-                scheduled_at=datetime.now(UTC),
-                status_code="scheduled"
-            )
-            db.session.add(offer_job)
-
+        db.session.add(offer_job)
         db.session.commit()
 
-        ReservationService.send_offer_catalogue_now(reservation)
-
-        if offer_job and offer_job.status_code == "scheduled":
-            offer_job.status_code = "completed"
-            offer_job.executed_at = datetime.now(UTC)
-            db.session.commit()
-
         return reservation
+
     @staticmethod
     def offer_catalogue_email_sent(reservation_id):
         """

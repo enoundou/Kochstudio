@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Angebot wählen | Kochstudio{% endblock %}
+
+{% block content %}
+<main class="section">
+  <div class="form-wrap">
+    <div class="form-head">
+      <h1>Angebot wählen</h1>
+      <p>Buchung {{ reservation.reservation_number }}</p>
+    </div>
+
+    <form class="card-form" method="POST" action="{{ url_for('customer_workflow.submit_offer_selection', token=token) }}">
+      <div class="form-row">
+        <div class="field">
+          <label for="catalogue_id">Preiskatalog</label>
+          <select id="catalogue_id" name="catalogue_id" required>
+            {% for offer in offers %}
+              <option value="{{ offer.id }}">{{ offer.name_de }} - {{ offer.price }} EUR</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row cols-2">
+        <div class="field">
+          <label for="billing_company_name">Firma</label>
+          <input id="billing_company_name" name="billing_company_name" type="text">
+        </div>
+        <div class="field">
+          <label for="billing_first_name">Vorname</label>
+          <input id="billing_first_name" name="billing_first_name" type="text" required>
+        </div>
+      </div>
+
+      <div class="form-row cols-2">
+        <div class="field">
+          <label for="billing_last_name">Nachname</label>
+          <input id="billing_last_name" name="billing_last_name" type="text" required>
+        </div>
+        <div class="field">
+          <label for="billing_street">Straße</label>
+          <input id="billing_street" name="billing_street" type="text" required>
+        </div>
+      </div>
+
+      <div class="form-row cols-2">
+        <div class="field">
+          <label for="billing_house_number">Hausnummer</label>
+          <input id="billing_house_number" name="billing_house_number" type="text" required>
+        </div>
+        <div class="field">
+          <label for="billing_postal_code">PLZ</label>
+          <input id="billing_postal_code" name="billing_postal_code" type="text" required>
+        </div>
+      </div>
+
+      <div class="form-row cols-2">
+        <div class="field">
+          <label for="billing_city">Ort</label>
+          <input id="billing_city" name="billing_city" type="text" required>
+        </div>
+        <div class="field">
+          <label for="billing_country">Land</label>
+          <input id="billing_country" name="billing_country" type="text" value="Deutschland" required>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="field">
+          <label for="note">Hinweis</label>
+          <textarea id="note" name="note"></textarea>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-block" type="submit">Angebot bestätigen</button>
+    </form>
+  </div>
+</main>
+{% endblock %}

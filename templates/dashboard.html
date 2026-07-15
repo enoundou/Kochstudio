@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Manager Dashboard | Kochstudio{% endblock %}
+
+{% block content %}
+    <main class="manager-wrap">
+        <section class="manager-head">
+            <div>
+                <h1>Manager</h1>
+                <p>Angemeldet als {{ manager.name }}.</p>
+            </div>
+
+            <div class="manager-actions">
+                <form method="POST" action="{{ url_for('manager.logout') }}">
+                    <button class="btn btn-outline" type="submit">Ausloggen</button>
+                </form>
+                <form method="POST" action="{{ url_for('manager.run_jobs') }}">
+                    <button class="btn btn-primary" type="submit">Fällige Jobs ausführen</button>
+                </form>
+            </div>
+        </section>
+
+        {% if message %}
+            <div class="alert alert-success">{{ message }}</div>
+        {% endif %}
+
+        <section class="stat-grid">
+            <article class="stat-card">
+                <span>Buchungen</span>
+                <strong>{{ statistics.reservations_total }}</strong>
+            </article>
+            <article class="stat-card">
+                <span>Vorläufig</span>
+                <strong>{{ statistics.reservations_temporary }}</strong>
+            </article>
+            <article class="stat-card">
+                <span>Bestätigt</span>
+                <strong>{{ statistics.reservations_confirmed }}</strong>
+            </article>
+            <article class="stat-card">
+                <span>Geplante Jobs</span>
+                <strong>{{ statistics.pending_jobs }}</strong>
+            </article>
+        </section>
+
+        <section class="manager-panel">
+            <h2>Buchungen</h2>
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                    <tr>
+                        <th>Nummer</th>
+                        <th>Kunde</th>
+                        <th>Event</th>
+              <th>Kochkurs 1</th>
+              <th>Kochkurs 2</th>
+              <th>Datum</th>
+                        <th>Status</th>
+                        <th>Aktion</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for reservation in reservations %}
+                        <tr>
+                            <td>{{ reservation.reservation_number }}</td>
+                            <td>{{ reservation.customer.name if reservation.customer else "" }}</td>
+                            <td>{{ reservation.event_type_code }}</td>
+              <td>{{ reservation.first_choice_course.name_de if reservation.first_choice_course else "" }}</td>
+              <td>{{ reservation.second_choice_course.name_de if reservation.second_choice_course else "" }}</td>
+              <td>{{ reservation.first_choice_date or "" }}</td>
+                            <td>{{ reservation.status_code }}</td>
+                            <td class="table-actions-cell">
+                                <form method="POST"
+                                      action="{{ url_for('manager.confirm_reservation', reservation_id=reservation.id) }}">
+                                    <button class="table-action" type="submit">Bestätigen</button>
+                                </form>
+                                <form method="POST"
+                                      action="{{ url_for('manager.cancel_reservation', reservation_id=reservation.id) }}">
+                                    <button class="table-action danger" type="submit">Stornieren</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="8">Keine Buchungen vorhanden.</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="manager-panel">
+            <h2>Automation Jobs</h2>
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                    <tr>
+                        <th>Job</th>
+                        <th>Status</th>
+                        <th>Geplant</th>
+                        <th>Fehler</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for job in jobs %}
+                        <tr>
+                            <td>{{ job.job_type_code }}</td>
+                            <td>{{ job.status_code }}</td>
+                            <td>{{ job.scheduled_at or "" }}</td>
+                            <td>{{ job.last_error or "" }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="4">Keine Jobs vorhanden.</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="manager-panel">
+            <h2>E-Mail Log</h2>
+            <div class="table-scroll">
+                <table class="data-table">
+                    <thead>
+                    <tr>
+                        <th>Typ</th>
+                        <th>Empfänger</th>
+                        <th>Status</th>
+                        <th>Betreff</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for log in email_logs %}
+                        <tr>
+                            <td>{{ log.email_type_code }}</td>
+                            <td>{{ log.to_email }}</td>
+                            <td>{{ log.status_code }}</td>
+                            <td>{{ log.subject or "" }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="4">Keine E-Mail Logs vorhanden.</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    
+  <section class="manager-grid">
+    <section class="manager-panel">
+      <h2>Kochkurse pflegen</h2>
+      <form class="compact-form" method="POST" action="{{ url_for('manager.create_course') }}">
+        <div class="form-row">
+          <div class="field">
+            <label for="course_name_de">Name</label>
+            <input id="course_name_de" name="name_de" type="text" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="course_description_de">Beschreibung</label>
+            <textarea id="course_description_de" name="description_de"></textarea>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Kochkurs speichern</button>
+      </form>
+
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Beschreibung</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for course in courses %}
+              <tr>
+                <td>{{ course.name_de }}</td>
+                <td>{{ course.description_de or "" }}</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="2">Keine Kochkurse vorhanden.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="manager-panel">
+      <h2>Preiskategorien pflegen</h2>
+      <form class="compact-form" method="POST" action="{{ url_for('manager.create_price_category') }}">
+        <div class="form-row cols-2">
+          <div class="field">
+            <label for="price_course_id">Kochkurs</label>
+            <select id="price_course_id" name="cooking_course_id" required>
+              {% for course in courses %}
+                <option value="{{ course.id }}">{{ course.name_de }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="category_code">Code</label>
+            <input id="category_code" name="category_code" type="text" placeholder="A" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="price_name_de">Name</label>
+            <input id="price_name_de" name="name_de" type="text" placeholder="Preiskategorie A" required>
+          </div>
+        </div>
+        <div class="form-row cols-2">
+          <div class="field">
+            <label for="min_participants">Teilnehmer von</label>
+            <input id="min_participants" name="min_participants" type="number" min="1" required>
+          </div>
+          <div class="field">
+            <label for="max_participants">Teilnehmer bis</label>
+            <input id="max_participants" name="max_participants" type="number" min="1">
+          </div>
+        </div>
+        <div class="form-row cols-2">
+          <div class="field">
+            <label for="price_per_person">Preis pro Person</label>
+            <input id="price_per_person" name="price_per_person" type="number" min="0" step="0.01" required>
+          </div>
+          <div class="field">
+            <label for="discount_percent">Rabatt %</label>
+            <input id="discount_percent" name="discount_percent" type="number" min="0" step="0.01" value="0">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="price_description_de">Beschreibung</label>
+            <textarea id="price_description_de" name="description_de"></textarea>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Preiskategorie speichern</button>
+      </form>
+
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Kochkurs</th>
+              <th>Kategorie</th>
+              <th>Teilnehmer</th>
+              <th>Preis</th>
+              <th>Rabatt</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for category in price_categories %}
+              <tr>
+                <td>{{ category.cooking_course.name_de if category.cooking_course else "" }}</td>
+                <td>{{ category.name_de }}</td>
+                <td>{{ category.min_participants }} - {{ category.max_participants or "" }}</td>
+                <td>{{ category.price_per_person }}</td>
+                <td>{{ category.discount_percent or 0 }} %</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="5">Keine Preiskategorien vorhanden.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+</main>
+{% endblock %}

@@ -31,7 +31,7 @@ def run_once():
         return processed_count
 
 
-def run_forever(interval_seconds=60):
+def run_forever(interval_minutes=None):
     """
     Continuously run pending automation jobs.
 
@@ -40,16 +40,22 @@ def run_forever(interval_seconds=60):
     configured interval before checking again.
 
     Args:
-        interval_seconds (int):
-            Number of seconds between job checks.
+        interval_minutes (int):
+            Number of minutes between job checks.
     """
 
     app = create_app()
 
     with app.app_context():
 
+        if interval_minutes is None:
+            interval_minutes = app.config.get(
+                "JOB_RUNNER_INTERVAL",
+                1
+            )
+
         app.logger.info(
-            "Automation job runner started."
+            f"Automation job runner started. Interval: {interval_minutes} minute(s)."
         )
 
         while True:
@@ -67,7 +73,7 @@ def run_forever(interval_seconds=60):
                     f"Automation job runner failed: {exc}"
                 )
 
-            time.sleep(interval_seconds)
+            time.sleep(interval_minutes * 60)
 
 
 if __name__ == "__main__":
@@ -75,8 +81,8 @@ if __name__ == "__main__":
     Start the automation job runner.
 
     Default behavior:
-    - Check pending jobs every 60 seconds.
+    - Check pending jobs using JOB_RUNNER_INTERVAL from .env.
     - Keep running until the process is stopped.
     """
 
-    run_forever(interval_seconds=60)
+    run_forever()

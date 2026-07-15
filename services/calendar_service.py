@@ -2,7 +2,7 @@ from datetime import datetime, UTC
 
 from flask import current_app
 
-from models import (
+from models.models import (
     db,
     CalendarInvitation,
     Collaborator

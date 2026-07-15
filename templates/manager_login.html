@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Manager Login | Kochstudio{% endblock %}
+
+{% block content %}
+<main class="login-wrap">
+  <section class="login-card" id="managerLoginCard">
+    <h1>Manager Login</h1>
+    <p class="sub">Melden Sie sich an, um Buchungen und Agent-Jobs zu sehen.</p>
+
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+    {% if message %}
+      <div class="alert alert-success">{{ message }}</div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('manager.login') }}">
+      <div class="form-row">
+        <div class="field">
+          <label for="login_email">E-Mail</label>
+          <input id="login_email" name="email" type="email" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="login_password">Passwort</label>
+          <input id="login_password" name="password" type="password" required>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit">Einloggen</button>
+    </form>
+
+    <button class="login-switch" id="showRegisterCard" type="button">Noch kein Konto? Registrieren</button>
+  </section>
+
+  <section class="login-card" id="managerRegisterCard" hidden>
+    <h1>Manager registrieren</h1>
+    <p class="sub">Erstellen Sie ein Manager-Konto für den geschützten Bereich.</p>
+
+    <form method="POST" action="{{ url_for('manager.register') }}">
+      <div class="form-row">
+        <div class="field">
+          <label for="register_name">Name</label>
+          <input id="register_name" name="name" type="text" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="register_email">E-Mail</label>
+          <input id="register_email" name="email" type="email" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="register_password">Passwort</label>
+          <input id="register_password" name="password" type="password" minlength="6" required>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" type="submit">Registrieren</button>
+    </form>
+
+    <button class="login-switch" id="showLoginCard" type="button">Bereits ein Konto? Einloggen</button>
+  </section>
+</main>
+{% endblock %}

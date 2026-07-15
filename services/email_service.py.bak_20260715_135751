@@ -561,25 +561,15 @@ Ihr Kochstudio Team
             reservation_id=reservation.id
         ).first()
 
-        if not condition:
-            raise ValueError(
-                "ReservationCondition is required before sending offers."
-            )
-
-        offers = OfferCatalogue.query.filter_by(active=1).order_by(
-            OfferCatalogue.price.asc()
-        ).all()
-
-        if not offers:
-            raise ValueError(
-                "At least one active offer catalogue is required."
-            )
-
         offer_url = url_for(
             "customer_workflow.offer_selection_page",
             token=condition.confirmation_token,
             _external=True
         )
+
+        offers = OfferCatalogue.query.filter_by(active=1).order_by(
+            OfferCatalogue.price.asc()
+        ).all()
 
         offer_lines = [
             f"- {offer.name_de}: {offer.price} EUR"
@@ -594,7 +584,7 @@ Ihr Kochstudio Team
             + "\n".join(offer_lines)
             + f"\n\nFormular: {offer_url}"
         )
-
+        print(body)
         return EmailService.send_email(
             reservation=reservation,
             email_type_code="offer_catalogue",
@@ -602,6 +592,7 @@ Ihr Kochstudio Team
             subject=subject,
             body=body
         )
+
     @staticmethod
     def send_offer_reminder(reservation):
         """
@@ -611,20 +602,6 @@ Ihr Kochstudio Team
         condition = ReservationCondition.query.filter_by(
             reservation_id=reservation.id
         ).first()
-
-        if not condition:
-            raise ValueError(
-                "ReservationCondition is required before sending offers."
-            )
-
-        offers = OfferCatalogue.query.filter_by(active=1).order_by(
-            OfferCatalogue.price.asc()
-        ).all()
-
-        if not offers:
-            raise ValueError(
-                "At least one active offer catalogue is required."
-            )
 
         offer_url = url_for(
             "customer_workflow.offer_selection_page",
@@ -646,6 +623,7 @@ Ihr Kochstudio Team
             subject=subject,
             body=body
         )
+
     @staticmethod
     def send_reservation_confirmation(reservation):
         """

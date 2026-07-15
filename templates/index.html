@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Kochstudio Darmstadt | Gruppenevents & Kochkurse{% endblock %}
+
+{% block content %}
+<main>
+  <section class="hero">
+    <img src="{{ url_for('static', filename='images/hero-cooking-studio.jpg') }}" alt="Kochstudio Darmstadt">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <h1>Gemeinsam kochen, zusammen erleben</h1>
+      <p>Gruppenevents, Firmenveranstaltungen und Koch-Erlebnisse im Herzen von Darmstadt.</p>
+      <div class="hero-cta">
+        <a href="{{ url_for('booking.booking_form') }}" class="btn btn-primary">Event buchen</a>
+        <a href="#events" class="btn btn-outline">Unsere Events</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="events" class="section">
+    <div class="section-inner">
+      <div class="section-head">
+        <h2>Unsere Event-Typen</h2>
+        <p>Für jeden Anlass das passende Erlebnis</p>
+      </div>
+      <div class="event-grid">
+        <article class="event-card">
+          <div class="thumb"><img src="{{ url_for('static', filename='images/event-corporate.jpg') }}" alt="Firmenveranstaltung"></div>
+          <div class="body">
+            <h3>Firmenveranstaltung</h3>
+            <p>Teambuilding mit Geschmack. Stärken Sie den Zusammenhalt Ihres Teams bei einem gemeinsamen Kocherlebnis.</p>
+          </div>
+        </article>
+        <article class="event-card">
+          <div class="thumb"><img src="{{ url_for('static', filename='images/event-party.jpg') }}" alt="Koch-Erlebnisparty"></div>
+          <div class="body">
+            <h3>Koch-Erlebnisparty</h3>
+            <p>Ein unvergesslicher Abend mit Freunden oder Familie. Kochen, genießen und lachen.</p>
+          </div>
+        </article>
+        <article class="event-card">
+          <div class="thumb"><img src="{{ url_for('static', filename='images/event-kids.jpg') }}" alt="Kinderveranstaltung"></div>
+          <div class="body">
+            <h3>Kinderveranstaltung</h3>
+            <p>Spielerisch Kochen lernen für die Kleinen. Kreative Rezepte und jede Menge Spaß.</p>
+          </div>
+        </article>
+        <article class="event-card">
+          <div class="body">
+            <h3>Sonstiges</h3>
+            <p>Geburtstagsfeier, Junggesellenabschied oder eine ganz eigene Idee? Wir machen es möglich.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</main>
+{% endblock %}
