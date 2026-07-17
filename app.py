@@ -16,7 +16,6 @@ from models.models import (
     InvitationStatus,
     JobStatus,
     Manager,
-    OfferCatalogue,
     CookingCourse,
     CoursePriceCategory,
     ReservationStatus,
@@ -62,6 +61,7 @@ def create_app():
         db.create_all()
         ensure_manager_password_column()
         ensure_reservation_course_columns()
+        ensure_reservation_offer_selection_columns()
         seed_reference_data()
 
     return app
@@ -115,6 +115,351 @@ def ensure_reservation_course_columns():
 
     db.session.commit()
 
+def ensure_reservation_offer_selection_columns():
+    """
+    Rebuild reservation offer selections to use course price categories.
+
+    SQLite cannot safely drop a NOT NULL column with ALTER TABLE, so this
+    migration rebuilds the table when the old catalogue_id column exists.
+    Existing rows are mapped to the first active price category of the
+    reservation course when possible.
+    """
+
+    columns = db.session.execute(
+        text("PRAGMA table_info(reservation_offer_selections)")
+    ).fetchall()
+
+    if not columns:
+        return
+
+    column_names = {
+        column[1]
+        for column in columns
+    }
+
+    if (
+            "course_price_category_id" in column_names
+            and "catalogue_id" not in column_names
+    ):
+        return
+
+    db.session.execute(
+        text("ALTER TABLE reservation_offer_selections RENAME TO reservation_offer_selections_old")
+    )
+
+    db.session.execute(text("""
+        CREATE TABLE reservation_offer_selections (
+            id INTEGER PRIMARY KEY,
+            reservation_id INTEGER NOT NULL,
+            course_price_category_id INTEGER NOT NULL,
+            selected_at DATETIME,
+            note TEXT,
+            created_at DATETIME,
+            FOREIGN KEY(reservation_id) REFERENCES reservations(id),
+            FOREIGN KEY(course_price_category_id) REFERENCES course_price_categories(id)
+        )
+    """))
+
+    if "course_price_category_id" in column_names:
+        db.session.execute(text("""
+            INSERT INTO reservation_offer_selections (
+                id,
+                reservation_id,
+                course_price_category_id,
+                selected_at,
+                note,
+                created_at
+            )
+            SELECT
+                id,
+                reservation_id,
+                course_price_category_id,
+                selected_at,
+                note,
+                created_at
+            FROM reservation_offer_selections_old
+            WHERE course_price_category_id IS NOT NULL
+        """))
+    else:
+        db.session.execute(text("""
+            INSERT INTO reservation_offer_selections (
+                id,
+                reservation_id,
+                course_price_category_id,
+                selected_at,
+                note,
+                created_at
+            )
+            SELECT
+                old.id,
+                old.reservation_id,
+                (
+                    SELECT cpc.id
+                    FROM course_price_categories cpc
+                    JOIN reservations r ON r.id = old.reservation_id
+                    WHERE cpc.active = 1
+                    AND cpc.cooking_course_id IN (
+                        r.first_choice_course_id,
+                        r.second_choice_course_id,
+                        r.cooking_course_id
+                    )
+                    ORDER BY cpc.price_per_person ASC
+                    LIMIT 1
+                ),
+                old.selected_at,
+                old.note,
+                old.created_at
+            FROM reservation_offer_selections_old old
+            WHERE (
+                SELECT cpc.id
+                FROM course_price_categories cpc
+                JOIN reservations r ON r.id = old.reservation_id
+                WHERE cpc.active = 1
+                AND cpc.cooking_course_id IN (
+                    r.first_choice_course_id,
+                    r.second_choice_course_id,
+                    r.cooking_course_id
+                )
+                ORDER BY cpc.price_per_person ASC
+                LIMIT 1
+            ) IS NOT NULL
+        """))
+
+    db.session.execute(
+        text("DROP TABLE reservation_offer_selections_old")
+    )
+    db.session.commit()
+
+def ensure_reservation_offer_selection_columns():
+    """
+    Rebuild reservation offer selections to use course price categories.
+
+    SQLite cannot safely drop a NOT NULL column with ALTER TABLE, so this
+    migration rebuilds the table when the old catalogue_id column exists.
+    Existing rows are mapped to the first active price category of the
+    reservation course when possible.
+    """
+
+    columns = db.session.execute(
+        text("PRAGMA table_info(reservation_offer_selections)")
+    ).fetchall()
+
+    if not columns:
+        return
+
+    column_names = {
+        column[1]
+        for column in columns
+    }
+
+    if (
+            "course_price_category_id" in column_names
+            and "catalogue_id" not in column_names
+    ):
+        return
+
+    db.session.execute(
+        text("ALTER TABLE reservation_offer_selections RENAME TO reservation_offer_selections_old")
+    )
+
+    db.session.execute(text("""
+        CREATE TABLE reservation_offer_selections (
+            id INTEGER PRIMARY KEY,
+            reservation_id INTEGER NOT NULL,
+            course_price_category_id INTEGER NOT NULL,
+            selected_at DATETIME,
+            note TEXT,
+            created_at DATETIME,
+            FOREIGN KEY(reservation_id) REFERENCES reservations(id),
+            FOREIGN KEY(course_price_category_id) REFERENCES course_price_categories(id)
+        )
+    """))
+
+    if "course_price_category_id" in column_names:
+        db.session.execute(text("""
+            INSERT INTO reservation_offer_selections (
+                id,
+                reservation_id,
+                course_price_category_id,
+                selected_at,
+                note,
+                created_at
+            )
+            SELECT
+                id,
+                reservation_id,
+                course_price_category_id,
+                selected_at,
+                note,
+                created_at
+            FROM reservation_offer_selections_old
+            WHERE course_price_category_id IS NOT NULL
+        """))
+    else:
+        db.session.execute(text("""
+            INSERT INTO reservation_offer_selections (
+                id,
+                reservation_id,
+                course_price_category_id,
+                selected_at,
+                note,
+                created_at
+            )
+            SELECT
+                old.id,
+                old.reservation_id,
+                (
+                    SELECT cpc.id
+                    FROM course_price_categories cpc
+                    JOIN reservations r ON r.id = old.reservation_id
+                    WHERE cpc.active = 1
+                    AND cpc.cooking_course_id IN (
+                        r.first_choice_course_id,
+                        r.second_choice_course_id,
+                        r.cooking_course_id
+                    )
+                    ORDER BY cpc.price_per_person ASC
+                    LIMIT 1
+                ),
+                old.selected_at,
+                old.note,
+                old.created_at
+            FROM reservation_offer_selections_old old
+            WHERE (
+                SELECT cpc.id
+                FROM course_price_categories cpc
+                JOIN reservations r ON r.id = old.reservation_id
+                WHERE cpc.active = 1
+                AND cpc.cooking_course_id IN (
+                    r.first_choice_course_id,
+                    r.second_choice_course_id,
+                    r.cooking_course_id
+                )
+                ORDER BY cpc.price_per_person ASC
+                LIMIT 1
+            ) IS NOT NULL
+        """))
+
+    db.session.execute(
+        text("DROP TABLE reservation_offer_selections_old")
+    )
+    db.session.commit()
+
+def ensure_reservation_offer_selection_columns():
+    """
+    Rebuild reservation offer selections to use course price categories.
+
+    SQLite cannot safely drop a NOT NULL column with ALTER TABLE, so this
+    migration rebuilds the table when the old catalogue_id column exists.
+    Existing rows are mapped to the first active price category of the
+    reservation course when possible.
+    """
+
+    columns = db.session.execute(
+        text("PRAGMA table_info(reservation_offer_selections)")
+    ).fetchall()
+
+    if not columns:
+        return
+
+    column_names = {
+        column[1]
+        for column in columns
+    }
+
+    if (
+            "course_price_category_id" in column_names
+            and "catalogue_id" not in column_names
+    ):
+        return
+
+    db.session.execute(
+        text("ALTER TABLE reservation_offer_selections RENAME TO reservation_offer_selections_old")
+    )
+
+    db.session.execute(text("""
+        CREATE TABLE reservation_offer_selections (
+            id INTEGER PRIMARY KEY,
+            reservation_id INTEGER NOT NULL,
+            course_price_category_id INTEGER NOT NULL,
+            selected_at DATETIME,
+            note TEXT,
+            created_at DATETIME,
+            FOREIGN KEY(reservation_id) REFERENCES reservations(id),
+            FOREIGN KEY(course_price_category_id) REFERENCES course_price_categories(id)
+        )
+    """))
+
+    if "course_price_category_id" in column_names:
+        db.session.execute(text("""
+            INSERT INTO reservation_offer_selections (
+                id,
+                reservation_id,
+                course_price_category_id,
+                selected_at,
+                note,
+                created_at
+            )
+            SELECT
+                id,
+                reservation_id,
+                course_price_category_id,
+                selected_at,
+                note,
+                created_at
+            FROM reservation_offer_selections_old
+            WHERE course_price_category_id IS NOT NULL
+        """))
+    else:
+        db.session.execute(text("""
+            INSERT INTO reservation_offer_selections (
+                id,
+                reservation_id,
+                course_price_category_id,
+                selected_at,
+                note,
+                created_at
+            )
+            SELECT
+                old.id,
+                old.reservation_id,
+                (
+                    SELECT cpc.id
+                    FROM course_price_categories cpc
+                    JOIN reservations r ON r.id = old.reservation_id
+                    WHERE cpc.active = 1
+                    AND cpc.cooking_course_id IN (
+                        r.first_choice_course_id,
+                        r.second_choice_course_id,
+                        r.cooking_course_id
+                    )
+                    ORDER BY cpc.price_per_person ASC
+                    LIMIT 1
+                ),
+                old.selected_at,
+                old.note,
+                old.created_at
+            FROM reservation_offer_selections_old old
+            WHERE (
+                SELECT cpc.id
+                FROM course_price_categories cpc
+                JOIN reservations r ON r.id = old.reservation_id
+                WHERE cpc.active = 1
+                AND cpc.cooking_course_id IN (
+                    r.first_choice_course_id,
+                    r.second_choice_course_id,
+                    r.cooking_course_id
+                )
+                ORDER BY cpc.price_per_person ASC
+                LIMIT 1
+            ) IS NOT NULL
+        """))
+
+    db.session.execute(
+        text("DROP TABLE reservation_offer_selections_old")
+    )
+    db.session.commit()
+
 def seed_reference_data():
     """
     Insert required lookup and demo records if they are missing.
@@ -130,7 +475,6 @@ def seed_reference_data():
     seed_invitation_statuses()
     seed_cooking_courses()
     seed_course_price_categories()
-    seed_offer_catalogues()
     seed_team_records()
 
     db.session.commit()
@@ -258,10 +602,10 @@ def seed_job_types():
     """
 
     items = [
-        ("send_conditions_after_30_min", "Bedingungen senden", "Send Conditions"),
-        ("remind_conditions_after_2_days", "Bedingungen erinnern", "Remind Conditions"),
+        ("send_conditions_after", "Bedingungen senden", "Send Conditions"),
+        ("remind_conditions_after", "Bedingungen erinnern", "Remind Conditions"),
         ("send_offer_catalogue", "Angebote senden", "Send Offers"),
-        ("remind_offer_after_2_days", "Angebot erinnern", "Remind Offer"),
+        ("remind_offer_after", "Angebot erinnern", "Remind Offer"),
         ("confirm_reservation", "Reservierung bestätigen", "Confirm Reservation"),
         ("notify_manager_invoice", "Manager informieren", "Notify Manager"),
         ("send_calendar_invites", "Mitarbeiter einladen", "Send Calendar Invites"),
@@ -407,41 +751,6 @@ def seed_course_price_categories():
 
 
 
-def seed_offer_catalogues():
-    """
-    Insert starter offer catalogue rows.
-    """
-
-    if OfferCatalogue.query.count() > 0:
-        return
-
-    db.session.add_all([
-        OfferCatalogue(
-            name_de="Classic Team Cooking",
-            name_en="Classic Team Cooking",
-            description_de="Gemeinsames Drei-Gänge-Menü mit saisonalen Zutaten.",
-            description_en="Shared three-course menu with seasonal ingredients.",
-            price=89.00,
-            active=1
-        ),
-        OfferCatalogue(
-            name_de="Premium Genussabend",
-            name_en="Premium Gourmet Evening",
-            description_de="Erweitertes Menü, Aperitif und begleitete Getränke.",
-            description_en="Extended menu, aperitif, and paired drinks.",
-            price=129.00,
-            active=1
-        ),
-        OfferCatalogue(
-            name_de="Kinder Kochwerkstatt",
-            name_en="Kids Cooking Workshop",
-            description_de="Kindgerechtes Kochprogramm mit Betreuung.",
-            description_en="Child-friendly cooking program with supervision.",
-            price=49.00,
-            active=1
-        ),
-    ])
-
 def seed_team_records():
     """
     Insert demo manager and collaborator rows.
@@ -450,19 +759,19 @@ def seed_team_records():
     if Manager.query.count() == 0:
         db.session.add(Manager(
             name="Kochstudio Manager",
-            email="manager@kochstudio-darmstadt.de"
+            email="nouneliane@gmail.com"
         ))
 
     if Collaborator.query.count() == 0:
         db.session.add_all([
             Collaborator(
                 name="Service Team",
-                email="service@kochstudio-darmstadt.de",
+                email="serviceenohandels@gmail.com",
                 role="Service"
             ),
             Collaborator(
                 name="Chef Team",
-                email="chef@kochstudio-darmstadt.de",
+                email="nouniane@hotmail.de",
                 role="Kitchen"
             ),
         ])

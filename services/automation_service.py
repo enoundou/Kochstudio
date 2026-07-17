@@ -3,7 +3,7 @@
 from datetime import datetime, UTC, timedelta
 
 from flask import current_app
-
+from sqlalchemy import func, or_
 from models.models import db, AutomationJob, Reservation
 from models.models import ReservationCondition
 from services.calendar_service import CalendarService
@@ -22,19 +22,27 @@ class AutomationService:
     @staticmethod
     def get_pending_jobs():
         """
-        Retrieve all scheduled jobs that are ready to run.
+        Retrieve scheduled or retryable failed jobs that are ready to run.
 
-        Returns:
-            list[AutomationJob]:
-                Scheduled automation jobs whose execution time
-                is now or in the past.
+        Failed jobs are retried while attempts is below 3. NULL attempts and
+        NULL scheduled_at values are handled explicitly for older rows.
         """
 
+        now = datetime.now(UTC)
+
         return AutomationJob.query.filter(
-            AutomationJob.status_code == "scheduled",
-            AutomationJob.scheduled_at <= datetime.now(UTC)
+            AutomationJob.status_code.in_([
+                "scheduled",
+                "failed"
+            ]),
+            or_(
+                AutomationJob.scheduled_at.is_(None),
+                AutomationJob.scheduled_at <= now
+            ),
+            func.coalesce(AutomationJob.attempts, 0) < 3
         ).order_by(
-            AutomationJob.scheduled_at.asc()
+            AutomationJob.scheduled_at.asc(),
+            AutomationJob.id.asc()
         ).all()
 
     @staticmethod
@@ -59,42 +67,39 @@ class AutomationService:
         """
         Execute a single automation job.
 
-        The method marks the job as running, dispatches it to
-        the correct handler, and finally updates the job status.
-
-        Args:
-            job (AutomationJob): Automation job instance.
-
-        Returns:
-            AutomationJob:
-                Updated automation job.
+        Reminder jobs are completed after the reminder handler returns without
+        an exception. If a reminder is no longer needed, the job is also
+        completed and the reason is stored in last_error for the dashboard.
         """
 
         try:
             job.status_code = "running"
             job.attempts = (job.attempts or 0) + 1
+            job.last_error = None
             db.session.commit()
 
-            if job.job_type_code == "send_conditions_after_30_min":
-                AutomationService.send_conditions_email(job)
+            handler_result = None
 
-            elif job.job_type_code == "remind_conditions_after_2_days":
-                AutomationService.send_conditions_reminder(job)
+            if job.job_type_code == "send_conditions_after":
+                handler_result = AutomationService.send_conditions_email(job)
+
+            elif job.job_type_code == "remind_conditions_after":
+                handler_result = AutomationService.send_conditions_reminder(job)
 
             elif job.job_type_code == "send_offer_catalogue":
-                AutomationService.send_offer_catalogue(job)
+                handler_result = AutomationService.send_offer_catalogue(job)
 
-            elif job.job_type_code == "remind_offer_after_2_days":
-                AutomationService.send_offer_reminder(job)
+            elif job.job_type_code == "remind_offer_after":
+                handler_result = AutomationService.send_offer_reminder(job)
 
             elif job.job_type_code == "confirm_reservation":
-                AutomationService.confirm_reservation(job)
+                handler_result = AutomationService.confirm_reservation(job)
 
             elif job.job_type_code == "notify_manager_invoice":
-                AutomationService.notify_manager_invoice(job)
+                handler_result = AutomationService.notify_manager_invoice(job)
 
             elif job.job_type_code == "send_calendar_invites":
-                AutomationService.send_calendar_invites(job)
+                handler_result = AutomationService.send_calendar_invites(job)
 
             else:
                 raise ValueError(
@@ -103,6 +108,10 @@ class AutomationService:
 
             job.status_code = "completed"
             job.executed_at = datetime.now(UTC)
+
+            if handler_result is False:
+                job.last_error = "Reminder skipped because it is no longer needed."
+
             db.session.commit()
 
             return job
@@ -119,11 +128,8 @@ class AutomationService:
         """
         Send reservation conditions to the customer.
 
-        This job is executed 30 minutes after the initial
-        reservation has been created.
-
-        Args:
-            job (AutomationJob): Automation job instance.
+        This job only sends the conditions email and updates the reservation
+        status. It does not create an automatic reminder job.
         """
 
         reservation = Reservation.query.get(job.reservation_id)
@@ -144,17 +150,6 @@ class AutomationService:
         reservation.current_step_code = "waiting_conditions_confirmation"
         reservation.updated_at = datetime.now(UTC)
 
-        reminder_job = AutomationJob(
-            reservation_id=reservation.id,
-            job_type_code="remind_conditions_after_2_days",
-            scheduled_at=datetime.now(UTC) + timedelta(days=current_app.config.get(
-                "CONDITIONS_REMINDER_DAYS",
-                2
-            )),
-            status_code="scheduled"
-        )
-
-        db.session.add(reminder_job)
         db.session.commit()
 
 
@@ -163,11 +158,9 @@ class AutomationService:
         """
         Send a reminder if conditions were not accepted yet.
 
-        If the reservation is still waiting for condition
-        confirmation, a reminder email is sent to the customer.
-
-        Args:
-            job (AutomationJob): Automation job instance.
+        Returns:
+            bool: True when the reminder email was sent, False when it was no
+            longer needed.
         """
 
         reservation = Reservation.query.get(job.reservation_id)
@@ -176,9 +169,11 @@ class AutomationService:
             raise ValueError("Reservation not found.")
 
         if reservation.status_code != "waiting_conditions_confirmation":
-            return
+            return False
 
         EmailService.send_conditions_reminder(reservation)
+
+        return True
 
     @staticmethod
     def send_offer_catalogue(job):
@@ -195,13 +190,16 @@ class AutomationService:
             raise ValueError("Reservation not found.")
 
         ReservationService.send_offer_catalogue_now(reservation)
+
+
     @staticmethod
     def send_offer_reminder(job):
         """
         Send a reminder if no offer has been selected yet.
 
-        Args:
-            job (AutomationJob): Automation job instance.
+        Returns:
+            bool: True when the reminder email was sent, False when it was no
+            longer needed.
         """
 
         reservation = Reservation.query.get(job.reservation_id)
@@ -210,9 +208,11 @@ class AutomationService:
             raise ValueError("Reservation not found.")
 
         if reservation.status_code != "waiting_offer_selection":
-            return
+            return False
 
         EmailService.send_offer_reminder(reservation)
+
+        return True
 
     @staticmethod
     def confirm_reservation(job):

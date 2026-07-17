@@ -129,32 +129,19 @@ class ReservationCondition(db.Model):
     reservation = db.relationship("Reservation", backref="conditions")
 
 
-class OfferCatalogue(db.Model):
-    __tablename__ = "offer_catalogues"
-
-    id = db.Column(db.Integer, primary_key=True)
-    name_de = db.Column(db.Text, nullable=False)
-    name_en = db.Column(db.Text, nullable=False)
-    description_de = db.Column(db.Text)
-    description_en = db.Column(db.Text)
-    pdf_url = db.Column(db.Text)
-    price = db.Column(db.Numeric(10, 2))
-    active = db.Column(db.Integer, default=1)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
-
-
 class ReservationOfferSelection(db.Model):
     __tablename__ = "reservation_offer_selections"
 
     id = db.Column(db.Integer, primary_key=True)
     reservation_id = db.Column(db.Integer, db.ForeignKey("reservations.id"), nullable=False)
-    catalogue_id = db.Column(db.Integer, db.ForeignKey("offer_catalogues.id"), nullable=False)
+    course_price_category_id = db.Column(db.Integer, db.ForeignKey("course_price_categories.id"), nullable=False)
     selected_at = db.Column(db.DateTime)
     note = db.Column(db.Text)
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     reservation = db.relationship("Reservation", backref="offer_selections")
-    catalogue = db.relationship("OfferCatalogue")
+    price_category = db.relationship("CoursePriceCategory")
+
 
 
 class EmailType(db.Model):

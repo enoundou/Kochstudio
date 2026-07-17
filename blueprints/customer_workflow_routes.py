@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request
 
-from models.models import OfferCatalogue, ReservationCondition
+from models.models import ReservationCondition
+from services.email_service import EmailService
 from services.reservation_service import ReservationService
 
 
@@ -82,9 +83,7 @@ def offer_selection_page(token):
             message="Der Angebotslink ist ungültig oder nicht mehr verfügbar."
         ), 404
 
-    offers = OfferCatalogue.query.filter_by(active=1).order_by(
-        OfferCatalogue.price.asc()
-    ).all()
+    offers = EmailService.get_offer_price_categories(condition.reservation)
 
     return render_template(
         "offer_selection.html",
@@ -115,7 +114,7 @@ def submit_offer_selection(token):
 
     selection = ReservationService.select_offer(
         reservation_id=condition.reservation_id,
-        catalogue_id=form_data.get("catalogue_id"),
+        course_price_category_id=form_data.get("course_price_category_id"),
         note=form_data.get("note"),
         billing_data=form_data
     )

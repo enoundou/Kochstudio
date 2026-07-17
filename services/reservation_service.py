@@ -13,6 +13,7 @@ from models.models import (
     ReservationOfferSelection,
     AutomationJob,
     EmailLog,
+    CoursePriceCategory,
 )
 
 
@@ -89,9 +90,9 @@ class ReservationService:
 
         conditions_delay = current_app.config.get(
             "CONDITIONS_DELAY_MINUTES",
-            30
+            10
         )
-
+        print("conditions_delay", conditions_delay)
         reservation = Reservation(
             reservation_number=ReservationService.generate_reservation_number(),
             customer_id=customer.id,
@@ -141,7 +142,7 @@ class ReservationService:
 
         job = AutomationJob(
             reservation_id=reservation.id,
-            job_type_code="send_conditions_after_30_min",
+            job_type_code="send_conditions_after",
             scheduled_at=datetime.now(UTC) + timedelta(minutes=conditions_delay),
             status_code="scheduled"
         )
@@ -226,7 +227,7 @@ class ReservationService:
 
         existing_reminder = AutomationJob.query.filter_by(
             reservation_id=reservation_id,
-            job_type_code="remind_offer_after_2_days",
+            job_type_code="remind_offer_after",
             status_code="scheduled"
         ).first()
 
@@ -235,7 +236,7 @@ class ReservationService:
 
         reminder_job = AutomationJob(
             reservation_id=reservation_id,
-            job_type_code="remind_offer_after_2_days",
+            job_type_code="remind_offer_after",
             scheduled_at=datetime.now(UTC) + timedelta(days=current_app.config.get(
                 "OFFER_REMINDER_DAYS",
                 2
@@ -251,6 +252,8 @@ class ReservationService:
     def send_offer_catalogue_now(reservation):
         """
         Send the offer catalogue email immediately if it was not sent yet.
+
+        This method does not create an automatic offer reminder job.
         """
 
         if ReservationService.offer_catalogue_email_sent(reservation.id):
@@ -263,10 +266,6 @@ class ReservationService:
         reservation.status_code = "waiting_offer_selection"
         reservation.current_step_code = "waiting_offer_selection"
         reservation.updated_at = datetime.now(UTC)
-
-        ReservationService.schedule_offer_reminder_if_missing(
-            reservation.id
-        )
 
         db.session.commit()
 
@@ -307,27 +306,17 @@ class ReservationService:
         return reservation
 
     @staticmethod
-    def select_offer(reservation_id, catalogue_id, note=None, billing_data=None):
+    def select_offer(
+            reservation_id,
+            course_price_category_id,
+            note=None,
+            billing_data=None
+    ):
         """
-        Select an offer catalogue for a reservation.
+        Select a course price category for a reservation.
 
-        Creates a reservation offer selection record and updates
-        the reservation workflow status. After the offer has been
-        selected, the service schedules the following automation jobs:
-
-        - Confirm reservation
-        - Notify manager for invoice creation
-        - Send calendar invitations to collaborators
-
-        Args:
-            reservation_id (int): Reservation identifier.
-            catalogue_id (int): Selected offer catalogue identifier.
-            note (str, optional): Additional customer note.
-
-        Returns:
-            ReservationOfferSelection | None:
-                The created offer selection record or None if the
-                reservation does not exist.
+        The selected offer now points to course_price_categories instead of
+        the removed offer_catalogues table.
         """
 
         reservation = Reservation.query.get(reservation_id)
@@ -335,28 +324,55 @@ class ReservationService:
         if not reservation:
             return None
 
+        selected_category = CoursePriceCategory.query.get(
+            ReservationService.parse_int(course_price_category_id)
+        )
+
+        if not selected_category or selected_category.active != 1:
+            return None
+
+        valid_course_ids = {
+            reservation.first_choice_course_id,
+            reservation.second_choice_course_id,
+            reservation.cooking_course_id,
+        }
+        valid_course_ids.discard(None)
+
+        if valid_course_ids and selected_category.cooking_course_id not in valid_course_ids:
+            return None
+
+        participant_count = reservation.participant_count
+
+        if participant_count:
+            if selected_category.min_participants > participant_count:
+                return None
+
+            if (
+                    selected_category.max_participants is not None
+                    and selected_category.max_participants < participant_count
+            ):
+                return None
+
         if billing_data:
             ReservationService.apply_billing_address(
                 reservation,
                 billing_data
             )
 
-        # Create offer selection record
         selection = ReservationOfferSelection(
             reservation_id=reservation.id,
-            catalogue_id=catalogue_id,
+            course_price_category_id=selected_category.id,
             selected_at=datetime.now(UTC),
             note=note
         )
 
         db.session.add(selection)
 
-        # Update reservation workflow status
         reservation.status_code = "offer_selected"
         reservation.current_step_code = "offer_selected"
+        reservation.cooking_course_id = selected_category.cooking_course_id
         reservation.updated_at = datetime.now(UTC)
 
-        # Schedule reservation confirmation
         confirm_job = AutomationJob(
             reservation_id=reservation.id,
             job_type_code="confirm_reservation",
@@ -364,7 +380,6 @@ class ReservationService:
             status_code="scheduled"
         )
 
-        # Schedule manager notification for invoice creation
         manager_job = AutomationJob(
             reservation_id=reservation.id,
             job_type_code="notify_manager_invoice",
@@ -372,7 +387,6 @@ class ReservationService:
             status_code="scheduled"
         )
 
-        # Schedule collaborator calendar invitations
         calendar_job = AutomationJob(
             reservation_id=reservation.id,
             job_type_code="send_calendar_invites",
@@ -550,7 +564,7 @@ class ReservationService:
 
         job = AutomationJob(
             reservation_id=reservation_id,
-            job_type_code="remind_conditions_after_2_days",
+            job_type_code="remind_conditions_after",
             scheduled_at=datetime.now(UTC) + timedelta(days=current_app.config.get(
                 "CONDITIONS_REMINDER_DAYS",
                 2
@@ -582,7 +596,7 @@ class ReservationService:
 
         job = AutomationJob(
             reservation_id=reservation_id,
-            job_type_code="remind_offer_after_2_days",
+            job_type_code="remind_offer_after",
             scheduled_at=datetime.now(UTC) + timedelta(days=current_app.config.get(
                 "OFFER_REMINDER_DAYS",
                 2

@@ -228,10 +228,10 @@ def seed_job_types():
     """
 
     items = [
-        ("send_conditions_after_30_min", "Bedingungen senden", "Send Conditions"),
-        ("remind_conditions_after_2_days", "Bedingungen erinnern", "Remind Conditions"),
+        ("send_conditions_after", "Bedingungen senden", "Send Conditions"),
+        ("remind_conditions_after", "Bedingungen erinnern", "Remind Conditions"),
         ("send_offer_catalogue", "Angebot senden", "Send Offer"),
-        ("remind_offer_after_2_days", "Angebot erinnern", "Remind Offer"),
+        ("remind_offer_after", "Angebot erinnern", "Remind Offer"),
         ("confirm_reservation", "Reservierung bestätigen", "Confirm Reservation"),
         ("notify_manager_invoice", "Manager informieren", "Notify Manager"),
         ("send_calendar_invites", "Kalender Einladungen", "Calendar Invitations")

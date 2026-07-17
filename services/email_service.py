@@ -15,7 +15,6 @@ from models.models import (
     EmailLog,
     Manager,
     Collaborator,
-    OfferCatalogue,
     ReservationCondition,
     CoursePriceCategory,
 )
@@ -302,31 +301,54 @@ class EmailService:
         model = current_app.config.get("OPENAI_MODEL", "gpt-4.1")
 
         system_prompt = """
+Du bist ein professioneller E-Mail-Assistent für ein deutsches Kochstudio.
+Schreibe freundlich, klar, warm und geschäftlich.
+Nutze ausschließlich die bereitgestellten Buchungsdaten und den RAG-Kontext.
+Erfinde keine Preise, Rabatte, Termine, Verfügbarkeiten oder zusätzlichen Leistungen.
+Wenn Informationen fehlen, formuliere neutral.
+Gib nur den fertigen E-Mail-Text zurück.
+Kein Markdown.
+Kein Betreff.
 
-Du schreibst professionelle, freundliche E-Mails für ein deutsches Kochstudio.
-Der Stil ist verbindlich, klar, warm und geschäftlich.
-Nutze ausschließlich die übergebenen Fakten.
-Erfinde keine Verfügbarkeit, keine Preise und keine Rabatte.
-Die E-Mail soll die Bedingungen erklären und den Kunden bitten, über die Links
-zu akzeptieren oder abzulehnen.
-Gib nur den fertigen E-Mail-Text zurück, ohne Markdown und ohne Betreff.
+Die Abschnitte "Kosten & Leistungen" und "Ablauf des Kochevents" müssen
+immer enthalten sein. Die Leistungen und der Ablauf aus dem RAG-Kontext
+müssen sinngemäß vollständig übernommen werden.
+""".strip()
+
+        rag_context = """
+Leistungen:
+In den Preisvarianten sind alle Zutaten, Getränke wie Begrüßungsgetränk,
+Wein, Bier, Softdrinks, Tee und Kaffee, Rezepte sowie Kochschürzen enthalten.
+Falls für die Gruppengröße ein Gruppenrabatt hinterlegt ist, wird dieser auf
+den Gesamtpreis angewendet.
+
+Ablauf des Kochevents:
+- Dauer: ca. 4 Stunden
+- Begrüßung mit einem Prosecco und kleinem Snack
+- Aufteilung in Teams zur Zubereitung der einzelnen Gänge
+- Gemeinsames Verzehren der Gerichte
+- Abschluss mit einem Dessert
+- Danach gemütlicher Ausklang für etwa eine Stunde
 """.strip()
 
         user_prompt = f"""
-Bitte formuliere eine Konditions-E-Mail auf Deutsch.
+Erstelle eine Konditions-E-Mail auf Deutsch.
 
-Pflichtinhalte:
-- Persönliche Anrede mit dem Kundennamen
-- Dank für die Anfrage
-- Zusammenfassung der Teilnehmeranzahl, Termine und Kochkurse
-- Kosten & Leistungen auf Basis der Preisinformationen
-- Ablauf des Kochevents
-- Hinweis, dass die Buchung erst nach Bestätigung vorläufig weitergeführt wird
-- Akzeptieren-Link
-- Freundliche Schlussformel vom Kochstudio Team
-- Ablehnen-Link
+Pflichtstruktur:
+1. Persönliche Anrede mit dem Kundennamen
+2. Dank für die Anfrage
+3. Kurze Zusammenfassung der Anfrage mit Teilnehmeranzahl, Terminen und Kochkursen
+4. Abschnitt "Kosten & Leistungen"
+5. Abschnitt "Ablauf des Kochevents"
+6. Hinweis, dass die Buchung erst nach Bestätigung der Bedingungen vorläufig weitergeführt wird
+7. Link zum Akzeptieren der Bedingungen
+8. Link zum Ablehnen der Bedingungen
+9. Freundliche Schlussformel vom Kochstudio Team
 
-Daten:
+RAG-Kontext:
+{rag_context}
+
+Buchungsdaten:
 {json.dumps(context, ensure_ascii=False, indent=2)}
 """.strip()
 
@@ -359,7 +381,6 @@ Daten:
                 f"OpenAI conditions email generation failed: {exc}"
             )
             return None
-
     @staticmethod
     def extract_openai_text(response):
         """
@@ -399,7 +420,8 @@ Sehr geehrte/r {context['customer_name']},
 Kosten & Leistungen:
 {context['price_lines']}
 
-In den Preisvarianten sind alle Zutaten, Getränke (Begrüßungsgetränk, Wein, Bier, Softdrinks, Tee und Kaffee), Rezepte sowie Kochschürzen enthalten. Falls für Ihre Gruppengröße ein Gruppenrabatt hinterlegt ist, wird dieser auf den Gesamtpreis angewendet.
+In den Preisvarianten sind alle Zutaten, Getränke (Begrüßungsgetränk, Wein, Bier, Softdrinks, Tee und Kaffee), Rezepte sowie Kochschürzen enthalten. 
+Falls für Ihre Gruppengröße ein Gruppenrabatt hinterlegt ist, wird dieser auf den Gesamtpreis angewendet.
 
 **Ablauf des Kochevents:**
 
@@ -552,9 +574,86 @@ Ihr Kochstudio Team
         )
 
     @staticmethod
+    def get_offer_price_categories(reservation):
+        """
+        Return active price categories for the reservation course choices.
+
+        When the participant count is known, only categories whose participant
+        range matches the requested group size are returned.
+        """
+
+        course_ids = []
+
+        for course_id in [
+                reservation.first_choice_course_id,
+                reservation.second_choice_course_id,
+                reservation.cooking_course_id
+        ]:
+            if course_id and course_id not in course_ids:
+                course_ids.append(course_id)
+
+        if not course_ids:
+            raise ValueError(
+                "At least one cooking course is required before sending offers."
+            )
+
+        query = CoursePriceCategory.query.filter(
+            CoursePriceCategory.active == 1,
+            CoursePriceCategory.cooking_course_id.in_(course_ids)
+        )
+
+        participant_count = reservation.participant_count
+
+        if participant_count:
+            query = query.filter(
+                CoursePriceCategory.min_participants <= participant_count,
+                (
+                    (CoursePriceCategory.max_participants.is_(None)) |
+                    (CoursePriceCategory.max_participants >= participant_count)
+                )
+            )
+
+        return query.order_by(
+            CoursePriceCategory.cooking_course_id.asc(),
+            CoursePriceCategory.min_participants.asc(),
+            CoursePriceCategory.price_per_person.asc()
+        ).all()
+
+    @staticmethod
+    def build_offer_category_line(category):
+        """
+        Build one readable offer line from a course price category.
+        """
+
+        course_name = (
+            category.cooking_course.name_de
+            if category.cooking_course
+            else "Kochkurs"
+        )
+        participant_range = EmailService.build_participant_range(category)
+        discount_text = (
+            f", {category.discount_percent}% Gruppenrabatt"
+            if category.discount_percent
+            else ""
+        )
+
+        description = (
+            f" - {category.description_de}"
+            if category.description_de
+            else ""
+        )
+
+        return (
+            f"- {course_name}: {category.name_de} "
+            f"({participant_range}) - "
+            f"{category.price_per_person} EUR pro Person"
+            f"{discount_text}{description}"
+        )
+
+    @staticmethod
     def send_offer_catalogue(reservation):
         """
-        Send available offer catalogues to the customer.
+        Send available course price categories to the customer.
         """
 
         condition = ReservationCondition.query.filter_by(
@@ -566,13 +665,11 @@ Ihr Kochstudio Team
                 "ReservationCondition is required before sending offers."
             )
 
-        offers = OfferCatalogue.query.filter_by(active=1).order_by(
-            OfferCatalogue.price.asc()
-        ).all()
+        offers = EmailService.get_offer_price_categories(reservation)
 
         if not offers:
             raise ValueError(
-                "At least one active offer catalogue is required."
+                "At least one active course price category is required."
             )
 
         offer_url = url_for(
@@ -582,14 +679,14 @@ Ihr Kochstudio Team
         )
 
         offer_lines = [
-            f"- {offer.name_de}: {offer.price} EUR"
+            EmailService.build_offer_category_line(offer)
             for offer in offers
         ]
 
         subject = f"Angebote zu Ihrer Buchung {reservation.reservation_number}"
 
         body = (
-            "Bitte wählen Sie Ihren Preiskatalog und ergänzen Sie Ihre "
+            "Bitte wählen Sie Ihre Preiskategorie und ergänzen Sie Ihre "
             "Rechnungsadresse über das Formular.\n\n"
             + "\n".join(offer_lines)
             + f"\n\nFormular: {offer_url}"
@@ -602,10 +699,11 @@ Ihr Kochstudio Team
             subject=subject,
             body=body
         )
+
     @staticmethod
     def send_offer_reminder(reservation):
         """
-        Send a reminder to select an offer catalogue.
+        Send a reminder to select a course price category.
         """
 
         condition = ReservationCondition.query.filter_by(
@@ -617,13 +715,11 @@ Ihr Kochstudio Team
                 "ReservationCondition is required before sending offers."
             )
 
-        offers = OfferCatalogue.query.filter_by(active=1).order_by(
-            OfferCatalogue.price.asc()
-        ).all()
+        offers = EmailService.get_offer_price_categories(reservation)
 
         if not offers:
             raise ValueError(
-                "At least one active offer catalogue is required."
+                "At least one active course price category is required."
             )
 
         offer_url = url_for(
@@ -635,7 +731,7 @@ Ihr Kochstudio Team
         subject = "Erinnerung: Angebotsauswahl erforderlich"
 
         body = (
-            "Bitte wählen Sie Ihren Preiskatalog und geben Sie Ihre "
+            "Bitte wÃ¤hlen Sie Ihre Preiskategorie und geben Sie Ihre "
             f"Rechnungsadresse an.\n\nFormular: {offer_url}"
         )
 
@@ -646,6 +742,7 @@ Ihr Kochstudio Team
             subject=subject,
             body=body
         )
+
     @staticmethod
     def send_reservation_confirmation(reservation):
         """

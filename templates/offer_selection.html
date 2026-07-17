@@ -13,10 +13,10 @@
     <form class="card-form" method="POST" action="{{ url_for('customer_workflow.submit_offer_selection', token=token) }}">
       <div class="form-row">
         <div class="field">
-          <label for="catalogue_id">Preiskatalog</label>
-          <select id="catalogue_id" name="catalogue_id" required>
+          <label for="course_price_category_id">Preiskategorie</label>
+          <select id="course_price_category_id" name="course_price_category_id" required>
             {% for offer in offers %}
-              <option value="{{ offer.id }}">{{ offer.name_de }} - {{ offer.price }} EUR</option>
+              <option value="{{ offer.id }}">{{ offer.cooking_course.name_de if offer.cooking_course else "Kochkurs" }} - {{ offer.name_de }} - {{ offer.price_per_person }} EUR pro Person</option>
             {% endfor %}
           </select>
         </div>
@@ -70,6 +70,17 @@
         <div class="field">
           <label for="note">Hinweis</label>
           <textarea id="note" name="note"></textarea>
+            <div class="field-tools">
+              <button
+                id="improveNoteButton"
+                class="btn btn-secondary btn-small"
+                type="button"
+                data-url="{{ url_for('booking.improve_note_text') }}"
+              >
+                  Hinweis besser formulieren
+              </button>
+              <span id="noteImproveStatus" class="field-status" aria-live="polite"></span>
+            </div>
         </div>
       </div>
 
