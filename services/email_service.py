@@ -601,8 +601,7 @@ Ihr Kochstudio Team
             CoursePriceCategory.active == 1,
             CoursePriceCategory.cooking_course_id.in_(course_ids)
         )
-
-        participant_count = reservation.participant_count
+        participant_count = max(reservation.participant_count or 1, 1)
 
         if participant_count:
             query = query.filter(
@@ -731,7 +730,7 @@ Ihr Kochstudio Team
         subject = "Erinnerung: Angebotsauswahl erforderlich"
 
         body = (
-            "Bitte wÃ¤hlen Sie Ihre Preiskategorie und geben Sie Ihre "
+            "Bitte wählen Sie Ihre Preiskategorie und geben Sie Ihre "
             f"Rechnungsadresse an.\n\nFormular: {offer_url}"
         )
 

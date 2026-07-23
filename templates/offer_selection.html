@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Angebot wählen | Kochstudio{% endblock %}
 
@@ -15,8 +15,8 @@
         <div class="field">
           <label for="course_price_category_id">Preiskategorie</label>
           <select id="course_price_category_id" name="course_price_category_id" required>
-            {% for offer in offers %}
-              <option value="{{ offer.id }}">{{ offer.cooking_course.name_de if offer.cooking_course else "Kochkurs" }} - {{ offer.name_de }} - {{ offer.price_per_person }} EUR pro Person</option>
+            {% for offer_option in offer_options %}
+              <option value="{{ offer_option.id }}">{{ offer_option.label }}</option>
             {% endfor %}
           </select>
         </div>

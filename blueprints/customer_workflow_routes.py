@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request
+﻿from flask import Blueprint, render_template, request
 
 from models.models import ReservationCondition
 from services.email_service import EmailService
@@ -22,7 +22,7 @@ def accept_conditions_page(token):
     except Exception:
         return render_template(
             "message.html",
-            title="Bedingungen bestätigt",
+            title="Bedingungen bestütigt",
             message=(
                 "Vielen Dank. Ihre Bestätigung wurde gespeichert. "
                 "Die Angebotsmail konnte gerade nicht automatisch gesendet werden; "
@@ -67,7 +67,7 @@ def reject_conditions_page(token):
 
 
 @customer_workflow_bp.route("/offer-selection/<token>", methods=["GET"])
-def offer_selection_page(token):
+def offer_selection_page(token: object) -> tuple[str, int] | str:
     """
     Render the customer offer selection form.
     """
@@ -84,11 +84,18 @@ def offer_selection_page(token):
         ), 404
 
     offers = EmailService.get_offer_price_categories(condition.reservation)
+    offer_options = [
+        {
+            "id": offer.id,
+            "label": EmailService.build_offer_category_line(offer).lstrip("- ")
+        }
+        for offer in offers
+    ]
 
     return render_template(
         "offer_selection.html",
         reservation=condition.reservation,
-        offers=offers,
+        offer_options=offer_options,
         token=token
     )
 
